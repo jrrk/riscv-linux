@@ -82,6 +82,21 @@ void riscv_timer_interrupt(void)
 	evdev->event_handler(evdev);
 }
 
+static long __init riscv_timebase_frequency(struct device_node *node)
+{
+	u32 timebase;
+
+	if (!of_property_read_u32(node, "timebase-frequency", &timebase))
+		return timebase;
+
+	/* check under parent "cpus" node */
+	if (!of_property_read_u32(node->parent, "timebase-frequency",
+				  &timebase))
+		return timebase;
+
+	panic("RISC-V system with no 'timebase-frequency' in DTS\n");
+}
+
 static int __init riscv_timer_init_dt(struct device_node *n)
 {
 	int cpu_id = riscv_of_processor_hart(n), error;
@@ -90,6 +105,7 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 	if (cpu_id != smp_processor_id())
 		return 0;
 
+	riscv_timebase = riscv_timebase_frequency(n);
 	cs = per_cpu_ptr(&riscv_clocksource, cpu_id);
 	clocksource_register_hz(cs, riscv_timebase);
 
